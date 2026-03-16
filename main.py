@@ -29,8 +29,8 @@ def main():
     for event in lp.listen():
         if event.type == longpoll.VkEventType.MESSAGE_NEW and event.to_me:  # type: ignore[attr-defined]
             try:
-                user_id = event.obj['from_id']
-                text = event.obj['text']
+                user_id = event.user_id
+                text = event.text
                 print(f"💬 Сообщение от {user_id}: {text}")
                 
                 vk_session.method('messages.send', {  # type: ignore[attr-defined]
