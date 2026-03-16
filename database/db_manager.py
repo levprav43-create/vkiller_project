@@ -1,5 +1,5 @@
 from sqlalchemy import String, ForeignKey, Sequence, Integer, Column, SmallInteger, CheckConstraint, or_, and_
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import mapped_column, sessionmaker
 from database.models import *
 import sqlalchemy
 
@@ -25,15 +25,33 @@ def create_tables(cleaning=False):
 
 
 def add_user(
-        id,
-        vk_id,
-        first_name,
-        last_name,
-        city,
-        age,
-        gender
+        session: Session,
+        id: int,
+        vk_id: int,
+        first_name: str,
+        last_name: str,
+        city: str,
+        age: int,
+        gender: int
 ):
-    with Session() as session:
+    """
+    Функция добавляет пользователя в БД в таблицу 'users'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от sessionmaker(engine);
+        - id > уникальный ID для пользователя;
+        - vk_id > ID пользователя из VK;
+        - first_name > имя пользователя;
+        - last_name > фамилия пользователя;
+        - city > город пользователя;
+        - gender > род пользователя (число)
+            0 = Женский
+            1 = Мужской
+            прочее - не указан;
+    Возвращает:
+        True при успешном выполнении
+    """
+    with session() as session:
         session.add(User(
             id=id,
             vk_id=vk_id,
@@ -48,19 +66,41 @@ def add_user(
 
 
 def add_candidate_for_dating(
-        id,
-        vk_id,
-        first_name,
-        last_name,
-        city,
-        age,
-        gender,
-        profile_url,
-        photo_1,
-        photo_2,
-        photo_3
+        session: Session,
+        id: int,
+        vk_id: int,
+        first_name: str,
+        last_name: str,
+        city: str,
+        age: int,
+        gender: int,
+        profile_url: str,
+        photo_1: str,
+        photo_2: str,
+        photo_3: str
 ):
-    with Session() as session:
+    """
+        Функция добавляет кандидата для знакомства в БД в таблицу 'candidates'
+        Аргументы:
+            - session > активная сессия для взаимодействия
+                созданная от sessionmaker(engine);
+            - id > уникальный ID для кандидата;
+            - vk_id > ID пользователя из VK;
+            - first_name > имя пользователя;
+            - last_name > фамилия пользователя;
+            - city > город пользователя;
+            - gender > род пользователя (число)
+                0 = Женский
+                1 = Мужской
+                прочее - не указан;
+            - profile_url > ссылка на профиль в VK;
+            - photo_1 > ссылка №1 на популярное фото в VK
+            - photo_2 > ссылка №2 на популярное фото в VK
+            - photo_3 > ссылка №3 на популярное фото в VK
+        Возвращает:
+            При корректном завершении True
+        """
+    with session() as session:
         session.add(Candidate(
             id=id,
             vk_id=vk_id,
@@ -79,11 +119,25 @@ def add_candidate_for_dating(
 
 
 def add_favorites(
-        id,
-        user_id,
-        candidate_id,
+        session: Session,
+        id: int,
+        user_id: int,
+        candidate_id: DateTime,
 ):
-    with Session() as session:
+    """
+    Функция добавляет выбранного человека в избранное для пользователя
+        сохраняя его в БД в таблице 'favorites'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+                созданная от sessionmaker(engine);
+        - id > уникальный ID для избранного;
+        - user_id > ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в избранные;
+        - candidate_id > ID понравившегося пользователя
+    Возвращает:
+        True при успешном выполнении кода
+    """
+    with session() as session:
         session.add(Favorite(
             id=id,
             user_id=user_id,
@@ -94,11 +148,25 @@ def add_favorites(
 
 
 def add_blacklist(
-        id,
-        user_id,
-        candidate_id,
+        session: Session,
+        id: int,
+        user_id: int,
+        candidate_id: DateTime,
 ):
-    with Session() as session:
+    """
+    Функция добавляет выбранного человека в чёрный список для пользователя
+        сохраняя его в БД в таблице 'blacklist'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+                созданная от sessionmaker(engine);
+        - id > уникальный идентификатор записи;
+        - user_id > ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в черный список;
+        - candidate_id > ID пользователя добавляемого в черный список
+    Возвращает:
+        True при успешном исполнении кода
+    """
+    with session() as session:
         session.add(Blacklist(
             id=id,
             user_id=user_id,
