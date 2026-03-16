@@ -14,7 +14,7 @@ class User(Base):
     last_name = Column(String(100), nullable=False)
     city = Column(String(100))
     age = Column(Integer)
-    sex = Column(Integer)
+    gender = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -28,7 +28,7 @@ class Candidate(Base):
     last_name = Column(String(100), nullable=False)
     city = Column(String(100))
     age = Column(Integer)
-    sex = Column(Integer)
+    gender = Column(Integer)
     profile_url = Column(String(255), nullable=False)
     photo_1 = Column(String(255))
     photo_2 = Column(String(255))
