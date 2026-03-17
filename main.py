@@ -15,7 +15,8 @@ try:
         add_to_favorites,
         add_to_blacklist,
         get_favorites,
-        get_blacklist_ids
+        get_blacklist_ids,
+        filtering_out_elements
     )
     DB_FUNCTIONS_AVAILABLE = True
 except ImportError:
@@ -57,7 +58,6 @@ def main():
                             user_info = vk_client.get_user_info(user_id)
                             
                             # Сохраняем или обновляем пользователя в БД
-                            # (эта функция будет готова, когда Влад запушит)
                             # user = get_or_create_user(
                             #     db_session,
                             #     vk_id=user_id,
@@ -84,14 +84,34 @@ def main():
                     # 🔥 Здесь будет поиск кандидатов через VK API + БД
                     if DB_FUNCTIONS_AVAILABLE:
                         with Session(engine) as db_session:
-                            # blacklist_ids = get_blacklist_ids(db_session, user_id)
-                            # candidates = vk_client.search_users(...)
-                            # Фильтруем через БД и показываем
-                            pass
-                    response = "👤 Показываю следующего кандидата... (функция в разработке)"
+                            try:
+                                # Получаем ЧС и избранное
+                                # blacklist_ids = get_blacklist_ids(db_session, user_id)
+                                # favorites_ids = ...
+                                
+                                # Ищем кандидатов в VK
+                                # raw_candidates = vk_client.search_users(...)
+                                
+                                # Фильтруем через функцию Влада
+                                # filtered = filtering_out_elements(raw_candidates, blacklist_ids, favorites_ids)
+                                
+                                response = "👤 Показываю следующего кандидата... (функция в разработке)"
+                            except Exception as db_error:
+                                response = "⚠️ Ошибка поиска кандидатов"
+                                print(f"❌ Ошибка: {db_error}")
+                    else:
+                        response = "👤 Показываю следующего кандидата... (БД ещё не готова)"
                     
                 elif command == 'избранное':
-                    response = "⭐ Ваш список избранного (функция в разработке)"
+                    if DB_FUNCTIONS_AVAILABLE:
+                        with Session(engine) as db_session:
+                            try:
+                                # favorites = get_favorites(db_session, user_id)
+                                response = "⭐ Ваш список избранного (функция в разработке)"
+                            except Exception as db_error:
+                                response = "⚠️ Ошибка получения избранного"
+                    else:
+                        response = "⭐ Ваш список избранного (БД ещё не готова)"
                     
                 else:
                     response = "Напишите /начать для поиска пары 💕"
