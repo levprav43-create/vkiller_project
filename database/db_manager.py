@@ -1,30 +1,21 @@
-from sqlalchemy import String, ForeignKey, Sequence, Integer, Column, SmallInteger, CheckConstraint, or_, and_
-from sqlalchemy.orm import mapped_column, sessionmaker
+from sqlalchemy.orm import Session
 from database.models import *
-import sqlalchemy
+import re
 
 
-DSN = 'postgresql://postgres:GrePost_SQL@localhost:5432/users_database'
-
-engine = sqlalchemy.create_engine(DSN)
-
-Session = sessionmaker(bind=engine)
-
-
-def create_tables(cleaning=False):
+def filtering_out_elements(string: str) -> str:
     """
-    Функция создаёт таблицы назначенные наследованием от класса Base
-    Аргумент - cleaning со значением True позволяет удалить и заново создать все таблицы
-        по умолчанию равен False
-    Возвращает: True при удачном создании или когда таблицы уже существуют
+    Фильтрация поступившего строкового значения через регулярное выражение
+        удаляются все символьные значения, кроме '_'
+    Аргументы:
+        - 'string' > строка для которой проводится фильтрация;
+    Возвращает:
+        строку, содержащую только буквы, цифры и '_'
     """
-    if cleaning:
-        Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    return True
+    return "".join(re.findall(r'\w+', string))
 
 
-def add_user(
+def get_or_create_user(
         session: Session,
         id: int,
         vk_id: int,
@@ -32,26 +23,60 @@ def add_user(
         last_name: str,
         city: str,
         age: int,
-        gender: int
-):
+        sex: int
+) -> bool:
     """
     Функция добавляет пользователя в БД в таблицу 'users'
     Аргументы:
         - session > активная сессия для взаимодействия
-            созданная от sessionmaker(engine);
+            созданная от Session(engine);
         - id > уникальный ID для пользователя;
         - vk_id > ID пользователя из VK;
         - first_name > имя пользователя;
         - last_name > фамилия пользователя;
         - city > город пользователя;
-        - gender > род пользователя (число)
+        - sex > род пользователя (число)
             0 = Женский
             1 = Мужской
-            прочее - не указан;
+            прочее приведется к 2 = не указан;
     Возвращает:
         True при успешном выполнении
     """
-    with session() as session:
+    availability = session.query(User).filter(User.id == id).first()
+
+    if availability:
+        return True
+    else:
+        check = all(
+            [
+                isinstance(session, Session),
+                isinstance(id, int),
+                isinstance(vk_id, int),
+                isinstance(first_name, str),
+                isinstance(last_name, str),
+                isinstance(city, str),
+                isinstance(age, int),
+                isinstance(sex, int)
+            ]
+        )
+
+        if not check:
+            raise TypeError("Один из аргументов имеет не верный тип данных")
+
+        first_name = filtering_out_elements(first_name)
+        last_name = filtering_out_elements(last_name)
+        city = filtering_out_elements(city)
+
+        for i in [first_name, last_name, city]:
+            if not i:
+                raise ValueError("Одно из строковых значений после чистки пустое")
+
+        if not 1 < age < 140:
+            raise ValueError("Возраст меньше 1 или больше 140")
+
+        if sex not in [0, 1]:
+            sex = 2
+
         session.add(User(
             id=id,
             vk_id=vk_id,
@@ -59,13 +84,13 @@ def add_user(
             last_name=last_name,
             city=city,
             age=age,
-            gender=gender
+            sex=sex
         ))
         session.commit()
         return True
 
 
-def add_candidate_for_dating(
+def add_candidate(
         session: Session,
         id: int,
         vk_id: int,
@@ -73,63 +98,104 @@ def add_candidate_for_dating(
         last_name: str,
         city: str,
         age: int,
-        gender: int,
+        sex: int,
         profile_url: str,
         photo_1: str,
         photo_2: str,
         photo_3: str
-):
+) -> bool:
     """
-        Функция добавляет кандидата для знакомства в БД в таблицу 'candidates'
-        Аргументы:
-            - session > активная сессия для взаимодействия
-                созданная от sessionmaker(engine);
-            - id > уникальный ID для кандидата;
-            - vk_id > ID пользователя из VK;
-            - first_name > имя пользователя;
-            - last_name > фамилия пользователя;
-            - city > город пользователя;
-            - gender > род пользователя (число)
-                0 = Женский
-                1 = Мужской
-                прочее - не указан;
-            - profile_url > ссылка на профиль в VK;
-            - photo_1 > ссылка №1 на популярное фото в VK
-            - photo_2 > ссылка №2 на популярное фото в VK
-            - photo_3 > ссылка №3 на популярное фото в VK
-        Возвращает:
-            При корректном завершении True
-        """
-    with session() as session:
-        session.add(Candidate(
-            id=id,
-            vk_id=vk_id,
-            first_name=first_name,
-            last_name=last_name,
-            city=city,
-            age=age,
-            gender=gender,
-            profile_url=profile_url,
-            photo_1=photo_1,
-            photo_2=photo_2,
-            photo_3=photo_3,
-        ))
-        session.commit()
-        return True
+    Функция добавляет кандидата для знакомства в БД в таблицу 'candidates'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - id > уникальный ID для кандидата;
+        - vk_id > ID пользователя из VK;
+        - first_name > имя пользователя;
+        - last_name > фамилия пользователя;
+        - city > город пользователя;
+        - sex > род пользователя (число)
+            0 = Женский
+            1 = Мужской
+            прочее приведется к 2 - не указан;
+        - profile_url > ссылка на профиль в VK;
+        - photo_1 > ссылка №1 на популярное фото в VK
+        - photo_2 > ссылка №2 на популярное фото в VK
+        - photo_3 > ссылка №3 на популярное фото в VK
+    Возвращает:
+        При корректном завершении True
+    """
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(id, int),
+            isinstance(vk_id, int),
+            isinstance(first_name, str),
+            isinstance(last_name, str),
+            isinstance(city, str),
+            isinstance(age, int),
+            isinstance(sex, int),
+            isinstance(profile_url, str),
+            isinstance(photo_1, str),
+            isinstance(photo_2, str),
+            isinstance(photo_3, str)
+        ]
+    )
+
+    if not check:
+        raise TypeError("Один из аргументов имеет не верный тип данных")
+
+    first_name = filtering_out_elements(first_name)
+    last_name = filtering_out_elements(last_name)
+    city = filtering_out_elements(city)
+
+    for i in [
+        first_name,
+        last_name,
+        city,
+        profile_url,
+        photo_1,
+        photo_2,
+        photo_3
+    ]:
+        if not i:
+            raise ValueError("Одно из строковых значений пустое")
+
+    if not 1 < age < 140:
+        raise ValueError("Возраст меньше 1 или больше 140")
+
+    if sex not in [0, 1]:
+        sex = 2
+
+    session.add(Candidate(
+        id=id,
+        vk_id=vk_id,
+        first_name=first_name,
+        last_name=last_name,
+        city=city,
+        age=age,
+        sex=sex,
+        profile_url=profile_url,
+        photo_1=photo_1,
+        photo_2=photo_2,
+        photo_3=photo_3,
+    ))
+    session.commit()
+    return True
 
 
-def add_favorites(
+def add_to_favorites(
         session: Session,
         id: int,
         user_id: int,
-        candidate_id: DateTime,
-):
+        candidate_id: int,
+) -> bool:
     """
     Функция добавляет выбранного человека в избранное для пользователя
         сохраняя его в БД в таблице 'favorites'
     Аргументы:
         - session > активная сессия для взаимодействия
-                созданная от sessionmaker(engine);
+                созданная от Session(engine);
         - id > уникальный ID для избранного;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в избранные;
@@ -137,28 +203,38 @@ def add_favorites(
     Возвращает:
         True при успешном выполнении кода
     """
-    with session() as session:
-        session.add(Favorite(
-            id=id,
-            user_id=user_id,
-            candidate_id=candidate_id,
-        ))
-        session.commit()
-        return True
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(id, int),
+            isinstance(user_id, int),
+            isinstance(candidate_id, int),
+        ]
+    )
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
+    session.add(Favorite(
+        id=id,
+        user_id=user_id,
+        candidate_id=candidate_id,
+    ))
+    session.commit()
+    return True
 
 
-def add_blacklist(
+def add_to_blacklist(
         session: Session,
         id: int,
         user_id: int,
-        candidate_id: DateTime,
-):
+        candidate_id: int,
+) -> bool:
     """
     Функция добавляет выбранного человека в чёрный список для пользователя
         сохраняя его в БД в таблице 'blacklist'
     Аргументы:
         - session > активная сессия для взаимодействия
-                созданная от sessionmaker(engine);
+                созданная от Session(engine);
         - id > уникальный идентификатор записи;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в черный список;
@@ -166,11 +242,100 @@ def add_blacklist(
     Возвращает:
         True при успешном исполнении кода
     """
-    with session() as session:
-        session.add(Blacklist(
-            id=id,
-            user_id=user_id,
-            candidate_id=candidate_id,
-        ))
-        session.commit()
-        return True
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(id, int),
+            isinstance(user_id, int),
+            isinstance(candidate_id, int),
+        ]
+    )
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
+    session.add(Blacklist(
+        id=id,
+        user_id=user_id,
+        candidate_id=candidate_id,
+    ))
+    session.commit()
+    return True
+
+
+def get_favorites(
+        session: Session,
+        user_id: int
+):
+    """
+    Функция ищет ID пользователей, которые добавлены в избранное
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - user_id > ID пользователя из таблицы 'users' для которого идет поиск;
+    Возвращает:
+        - список ID кандидатов, которые есть в избранном у пользователя
+        - False, если ничего не найдено
+    """
+    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == user_id).all()
+
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(user_id, int)
+        ]
+    )
+
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
+    if list_ids:
+        return [i[0] for i in list_ids]
+    else:
+        return False
+
+
+def get_blacklist_ids(
+        session: Session,
+        user_id: int
+):
+    """
+    Функция ищет ID пользователей, которые помещены в черный список
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - user_id > ID пользователя из таблицы 'users' для которого идет поиск;
+    Возвращает:
+        - список ID кандидатов, которые добавлены в черный список у пользователя
+        - False, если ничего не найдено
+    """
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(user_id, int)
+        ]
+    )
+
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
+    list_ids = session.query(Blacklist.candidate_id).filter(Blacklist.user_id == user_id).all()
+    if list_ids:
+        return [i[0] for i in list_ids]
+    else:
+        return False
+
+
+# Не доделанные функции - пользователь ищется, но нет возврата данных
+def get_user_by_vk_id(
+        session: Session,
+        vk_id: int
+):
+    search = session.query(User).filter(User.vk_id == vk_id).first()
+    return search
+
+def get_candidate_by_vk_id(
+        session: Session,
+        vk_id: int
+):
+    search = session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
+    return search
