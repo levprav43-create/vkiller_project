@@ -4,7 +4,6 @@ from database.models import *
 
 def get_or_create_user(
         session: Session,
-        id: int,
         vk_id: int,
         first_name: str,
         last_name: str,
@@ -18,7 +17,6 @@ def get_or_create_user(
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
-        - id > уникальный ID для пользователя;
         - vk_id > ID пользователя из VK;
         - first_name > имя пользователя;
         - last_name > фамилия пользователя;
@@ -39,7 +37,6 @@ def get_or_create_user(
         check = all(
             [
                 isinstance(session, Session),
-                isinstance(id, int),
                 isinstance(vk_id, int),
                 isinstance(first_name, str),
                 isinstance(last_name, str),
@@ -63,7 +60,6 @@ def get_or_create_user(
             sex = 2
 
         session.add(User(
-            id=id,
             vk_id=vk_id,
             first_name=first_name,
             last_name=last_name,
@@ -77,7 +73,6 @@ def get_or_create_user(
 
 def add_candidate(
         session: Session,
-        id: int,
         vk_id: int,
         first_name: str,
         last_name: str,
@@ -94,7 +89,6 @@ def add_candidate(
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
-        - id > уникальный ID для кандидата;
         - vk_id > ID кандидата из VK;
         - first_name > имя кандидата;
         - last_name > фамилия кандидата;
@@ -113,7 +107,6 @@ def add_candidate(
     check = all(
         [
             isinstance(session, Session),
-            isinstance(id, int),
             isinstance(vk_id, int),
             isinstance(first_name, str),
             isinstance(last_name, str),
@@ -149,7 +142,6 @@ def add_candidate(
         sex = 2
 
     session.add(Candidate(
-        id=id,
         vk_id=vk_id,
         first_name=first_name,
         last_name=last_name,
@@ -167,7 +159,6 @@ def add_candidate(
 
 def add_to_favorites(
         session: Session,
-        id: int,
         user_id: int,
         candidate_id: int,
 ) -> bool:
@@ -177,7 +168,6 @@ def add_to_favorites(
     Аргументы:
         - session > активная сессия для взаимодействия
                 созданная от Session(engine);
-        - id > уникальный ID для избранного;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в избранные;
         - candidate_id > ID понравившегося кандидата
@@ -187,7 +177,6 @@ def add_to_favorites(
     check = all(
         [
             isinstance(session, Session),
-            isinstance(id, int),
             isinstance(user_id, int),
             isinstance(candidate_id, int),
         ]
@@ -196,7 +185,6 @@ def add_to_favorites(
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
     session.add(Favorite(
-        id=id,
         user_id=user_id,
         candidate_id=candidate_id,
     ))
@@ -206,7 +194,6 @@ def add_to_favorites(
 
 def add_to_blacklist(
         session: Session,
-        id: int,
         user_id: int,
         candidate_id: int,
 ) -> bool:
@@ -216,7 +203,6 @@ def add_to_blacklist(
     Аргументы:
         - session > активная сессия для взаимодействия
                 созданная от Session(engine);
-        - id > уникальный идентификатор записи;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в черный список;
         - candidate_id > ID кандидата добавляемого в черный список
@@ -226,7 +212,6 @@ def add_to_blacklist(
     check = all(
         [
             isinstance(session, Session),
-            isinstance(id, int),
             isinstance(user_id, int),
             isinstance(candidate_id, int),
         ]
@@ -235,7 +220,6 @@ def add_to_blacklist(
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
     session.add(Blacklist(
-        id=id,
         user_id=user_id,
         candidate_id=candidate_id,
     ))
@@ -245,14 +229,14 @@ def add_to_blacklist(
 
 def get_favorites(
         session: Session,
-        user_id: int
+        vk_id: int
 ) -> list:
     """
     Функция ищет кандидатов, которые добавлены в избранное
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
-        - user_id > ID пользователя из таблицы 'users' для которого идет поиск;
+        - vk_id > ID пользователя из таблицы 'users' для которого идет поиск;
     Возвращает:
         - список объектов класса 'Candidate', которые есть в избранном у пользователя;
         - [] пустой список, если ничего не найдено
@@ -260,14 +244,14 @@ def get_favorites(
     check = all(
         [
             isinstance(session, Session),
-            isinstance(user_id, int)
+            isinstance(vk_id, int)
         ]
     )
 
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == user_id).all()
+    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == vk_id).all()
 
     if list_ids:
         list_obj = []
