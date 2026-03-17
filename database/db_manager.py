@@ -375,7 +375,7 @@ def get_candidate_by_vk_id(
     return search
 
 
-def filtering_out_elements(
+def filter_candidates(
     session: Session,
     list_vk_candidates: list[dict],
     blacklist_ids: list[int],
