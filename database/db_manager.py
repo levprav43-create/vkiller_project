@@ -1,18 +1,5 @@
 from sqlalchemy.orm import Session
 from database.models import *
-import re
-
-
-def filtering_out_elements(string: str) -> str:
-    """
-    Фильтрация поступившего строкового значения через регулярное выражение
-        удаляются все символьные значения, кроме '_'
-    Аргументы:
-        - 'string' > строка для которой проводится фильтрация;
-    Возвращает:
-        строку, содержащую только буквы, цифры и '_'
-    """
-    return "".join(re.findall(r'\w+', string))
 
 
 def get_or_create_user(
@@ -24,7 +11,7 @@ def get_or_create_user(
         city: str,
         age: int,
         sex: int
-) -> bool:
+) -> User | bool:
     """
     Функция добавляет пользователя в БД в таблицу 'users',
         если же пользователь уже добавлен возвращает объект класса 'User'
@@ -44,7 +31,7 @@ def get_or_create_user(
         - True при успешном добавлении пользователя в БД
         - Объект класса 'User', если пользователь уже есть в БД
     """
-    availability = session.query(User).filter(User.id == id).first()
+    availability = session.query(User).filter(User.vk_id == vk_id).first()
 
     if availability:
         return availability
@@ -65,13 +52,9 @@ def get_or_create_user(
         if not check:
             raise TypeError("Один из аргументов имеет не верный тип данных")
 
-        first_name = filtering_out_elements(first_name)
-        last_name = filtering_out_elements(last_name)
-        city = filtering_out_elements(city)
-
         for i in [first_name, last_name, city]:
             if not i:
-                raise ValueError("Одно из строковых значений после чистки пустое")
+                raise ValueError("Одно из строковых значений пустое")
 
         if not 1 < age < 140:
             raise ValueError("Возраст меньше 1 или больше 140")
@@ -146,10 +129,6 @@ def add_candidate(
 
     if not check:
         raise TypeError("Один из аргументов имеет не верный тип данных")
-
-    first_name = filtering_out_elements(first_name)
-    last_name = filtering_out_elements(last_name)
-    city = filtering_out_elements(city)
 
     for i in [
         first_name,
@@ -288,10 +267,16 @@ def get_favorites(
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    list_ids = session.query(Favorite).filter(Favorite.user_id == user_id).all()
+    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == user_id).all()
 
     if list_ids:
-        return list_ids
+        list_obj = []
+
+        for id in [id[0] for id in list_ids]:
+            candidate = session.query(Candidate).filter(Candidate.id == id).first()
+            list_obj.append(candidate)
+
+        return list_obj
     else:
         return []
 
@@ -388,3 +373,41 @@ def get_candidate_by_vk_id(
 
     search = session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
     return search
+
+
+def filtering_out_elements(
+    session: Session,
+    list_vk_candidates: list[dict],
+    blacklist_ids: list[int],
+    favorites_ids: list[int]
+) -> list[dict]:
+    """
+    Функция для фильтрации поступивших кандидатов
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - list_vk_candidates > список кандидатов от VK API;
+        - blacklist_ids > список ID пользователей находящихся в черном списке;
+        - favorites_ids > список ID избранных пользователей
+    Возвращает:
+        - отфильтрованный список кандидатов
+    """
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(list_vk_candidates, list),
+            isinstance(blacklist_ids, list),
+            isinstance(favorites_ids, list)
+        ]
+    )
+
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
+    list_of_exceptions = blacklist_ids + favorites_ids
+
+    for candidate in list_vk_candidates:
+        if candidate['id'] in list_of_exceptions:
+            list_vk_candidates.remove(candidate)
+
+    return list_vk_candidates
