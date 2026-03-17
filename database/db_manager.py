@@ -322,7 +322,7 @@ def get_blacklist_ids(
 def get_user_by_vk_id(
         session: Session,
         vk_id: int
-):
+) -> User | None:
     """
     Функция находит пользователя по 'vk_id'в таблице 'users'
     Аргументы:
@@ -350,7 +350,7 @@ def get_user_by_vk_id(
 def get_candidate_by_vk_id(
         session: Session,
         vk_id: int
-):
+) -> Candidate | None:
     """
     Функция находит кандидата по 'vk_id' в таблице 'candidates'
     Аргументы:
