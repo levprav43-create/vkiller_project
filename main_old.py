@@ -7,7 +7,7 @@ from vk_api import longpoll  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 import os
 
-# Импорт функций из db_manager
+# 🔥 Импорт функций из db_manager
 try:
     from database.db_manager import (
         get_or_create_user,
@@ -26,23 +26,20 @@ except ImportError as e:
 
 load_dotenv()
 
-# Глобальная переменная для engine
+# 🔥 Глобальная переменная для engine
 engine = None
 
 
 def main():
-    global engine, DB_FUNCTIONS_AVAILABLE
+    global engine
     
-    # Попытка подключения к БД
-    try:
-        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/vkiller_db"
-        engine = create_engine(DATABASE_URL, echo=False)
-        Base.metadata.create_all(bind=engine)
-        print("✅ Подключение к БД успешно")
-    except Exception as db_error:
-        print(f"⚠️  Не удалось подключиться к БД: {db_error}")
-        print("🔄 Бот работает в режиме без БД (тест функционала)")
-        DB_FUNCTIONS_AVAILABLE = False
+    # 🔥 Создаём движок БД
+    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/vkiller_db"
+    engine = create_engine(DATABASE_URL, echo=False)
+    
+    # 🔥 Создаём таблицы в БД
+    Base.metadata.create_all(bind=engine)
+    print("✅ Подключение к БД успешно")
     
     # Инициализация клиента VK
     vk_client = VKClient()
@@ -60,7 +57,7 @@ def main():
                 text = event.text
                 print(f"💬 Сообщение от {user_id}: {text}")
                 
-                # ИНТЕГРАЦИЯ С БД (только если подключение успешно)
+                # 🔥 ИНТЕГРАЦИЯ С БД (только если подключение успешно)
                 if DB_FUNCTIONS_AVAILABLE and engine:
                     with Session(engine) as db_session:
                         try:
@@ -80,7 +77,7 @@ def main():
                             print(f"⚠️  Ошибка БД: {db_error}")
                             db_session.rollback()
                 
-                # Обработка команд
+                # 🔥 Обработка команд бота
                 command = text.strip().lower()
                 
                 if command in ['начать', 'start', '/start']:
@@ -124,10 +121,7 @@ def main():
                         response = "👤 Показываю следующего кандидата... (БД недоступна, режим теста)"
                     
                 elif command == 'избранное':
-                    if DB_FUNCTIONS_AVAILABLE and engine:
-                        response = "⭐ Ваш список избранного (функция в разработке)"
-                    else:
-                        response = "⭐ Ваш список избранного (БД недоступна, режим теста)"
+                    response = "⭐ Ваш список избранного (БД недоступна, режим теста)"
                     
                 elif command.startswith('нравится') or command.startswith('like'):
                     response = "✅ Добавлено в избранное! (функция в разработке)"
@@ -138,11 +132,11 @@ def main():
                 else:
                     response = "Напишите /начать для поиска пары 💕"
                 
-                # Отправка ответа
-                vk_session.method('messages.send', {
+                # Отправляем ответ пользователю
+                vk_session.method('messages.send', {  # type: ignore[attr-defined]
                     'peer_id': event.peer_id,
                     'message': response,
-                    'random_id': vk_api.utils.get_random_id(),
+                    'random_id': vk_api.utils.get_random_id(),  # type: ignore[attr-defined]
                     'v': '5.131'
                 })
                 
