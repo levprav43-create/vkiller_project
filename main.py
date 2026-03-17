@@ -16,7 +16,7 @@ try:
         add_to_blacklist,
         get_favorites,
         get_blacklist_ids,
-        filter_candidates  # ✅ Влад переименовал функцию
+        filter_candidates
     )
     DB_FUNCTIONS_AVAILABLE = True
     print("✅ Функции db_manager.py загружены")
@@ -26,14 +26,23 @@ except ImportError as e:
 
 load_dotenv()
 
+# 🔥 Глобальная переменная для engine
+engine = None
+
 
 def main():
-    # 🔥 Создаём движок БД
-    DATABASE_URL = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-    engine = create_engine(DATABASE_URL, echo=False)
+    global engine
     
-    # 🔥 Создаём таблицы в БД
-    Base.metadata.create_all(bind=engine)
+    # 🔥 Попытка подключиться к БД
+    try:
+        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/vkiller_db"
+        engine = create_engine(DATABASE_URL, echo=False)
+        Base.metadata.create_all(bind=engine)
+        print("✅ Подключение к БД успешно")
+    except Exception as db_error:
+        print(f"⚠️  Не удалось подключиться к БД: {db_error}")
+        print("🔄 Бот работает в режиме без БД (только тест)")
+        DB_FUNCTIONS_AVAILABLE = False  # Отключаем функции БД при ошибке
     
     # Инициализация клиента VK
     vk_client = VKClient()
@@ -51,14 +60,11 @@ def main():
                 text = event.text
                 print(f"💬 Сообщение от {user_id}: {text}")
                 
-                # 🔥 ИНТЕГРАЦИЯ С БД: Сохраняем пользователя
-                if DB_FUNCTIONS_AVAILABLE:
+                # 🔥 ИНТЕГРАЦИЯ С БД (только если подключение успешно)
+                if DB_FUNCTIONS_AVAILABLE and engine:
                     with Session(engine) as db_session:
                         try:
-                            # Получаем инфо о пользователе из VK
                             user_info = vk_client.get_user_info(user_id)
-                            
-                            # Сохраняем или обновляем пользователя в БД
                             user = get_or_create_user(
                                 db_session,
                                 vk_id=user_id,
@@ -70,7 +76,6 @@ def main():
                             )
                             db_session.commit()
                             print(f"✅ Пользователь {user_id} сохранён в БД")
-                            
                         except Exception as db_error:
                             print(f"⚠️  Ошибка БД: {db_error}")
                             db_session.rollback()
@@ -82,42 +87,25 @@ def main():
                     response = "🔍 Привет! Начинаю поиск пары...\nНапиши 'далее' для следующего кандидата"
                     
                 elif command == 'далее':
-                    # 🔥 Поиск кандидатов через VK API + фильтрация через БД
-                    if DB_FUNCTIONS_AVAILABLE:
+                    if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
                             try:
-                                # Получаем пользователя из БД
                                 current_user = get_or_create_user(
-                                    db_session,
-                                    vk_id=user_id,
-                                    first_name="",
-                                    last_name="",
-                                    city="",
-                                    age=0,
-                                    sex=0
+                                    db_session, vk_id=user_id,
+                                    first_name="", last_name="", city="", age=0, sex=0
                                 )
-                                
-                                # Получаем списки для фильтрации
                                 blacklist_vk_ids = get_blacklist_ids(db_session, user_id)
-                                
-                                # ✅ ИСПРАВЛЕНО: доступ через .vk_id (объекты БД, не словари!)
                                 favorites = get_favorites(db_session, user_id)
                                 favorites_vk_ids = [c.vk_id for c in favorites]
                                 
-                                print(f"🔍 Фильтрация: ЧС={len(blacklist_vk_ids)}, Избранное={len(favorites_vk_ids)}")
-                                
-                                # Ищем кандидатов в VK (сырые данные — список словарей)
                                 raw_candidates = vk_client.search_users(
                                     age=current_user.age if current_user.age else 25,
                                     sex=current_user.sex if current_user.sex else 1,
                                     city=current_user.city if current_user.city else "",
                                     count=10
                                 )
-                                
-                                # Фильтруем через функцию Влада
                                 filtered = filter_candidates(raw_candidates, blacklist_vk_ids, favorites_vk_ids)
                                 
-                                # Показываем первого кандидата
                                 if filtered:
                                     candidate = filtered[0]
                                     response = (
@@ -129,35 +117,19 @@ def main():
                                     )
                                 else:
                                     response = "😔 К сожалению, подходящих кандидатов не найдено. Попробуй позже!"
-                                    
                             except Exception as db_error:
                                 response = "⚠️ Ошибка поиска кандидатов"
                                 print(f"❌ Ошибка: {db_error}")
                     else:
-                        response = "👤 Показываю следующего кандидата... (БД ещё не готова)"
+                        response = "👤 Показываю следующего кандидата... (БД недоступна, режим теста)"
                     
                 elif command == 'избранное':
-                    if DB_FUNCTIONS_AVAILABLE:
-                        with Session(engine) as db_session:
-                            try:
-                                favorites = get_favorites(db_session, user_id)
-                                if favorites:
-                                    response = "⭐ Ваши избранные:\n" + "\n".join(
-                                        [f"- {c.first_name} {c.last_name}: {c.profile_url}" for c in favorites[:5]]
-                                    )
-                                else:
-                                    response = "⭐ Ваш список избранного пуст"
-                            except Exception as db_error:
-                                response = "⚠️ Ошибка получения избранного"
-                    else:
-                        response = "⭐ Ваш список избранного (БД ещё не готова)"
+                    response = "⭐ Ваш список избранного (БД недоступна, режим теста)"
                     
                 elif command.startswith('нравится') or command.startswith('like'):
-                    # 🔥 Добавить текущего кандидата в избранное (заглушка)
                     response = "✅ Добавлено в избранное! (функция в разработке)"
                     
                 elif command.startswith('не нравится') or command.startswith('blacklist'):
-                    # 🔥 Добавить текущего кандидата в ЧС (заглушка)
                     response = "✅ Добавлено в чёрный список! (функция в разработке)"
                     
                 else:
