@@ -26,7 +26,8 @@ def get_or_create_user(
         sex: int
 ) -> bool:
     """
-    Функция добавляет пользователя в БД в таблицу 'users'
+    Функция добавляет пользователя в БД в таблицу 'users',
+        если же пользователь уже добавлен возвращает объект класса 'User'
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
@@ -40,12 +41,13 @@ def get_or_create_user(
             1 = Мужской
             прочее приведется к 2 = не указан;
     Возвращает:
-        True при успешном выполнении
+        - True при успешном добавлении пользователя в БД
+        - Объект класса 'User', если пользователь уже есть в БД
     """
     availability = session.query(User).filter(User.id == id).first()
 
     if availability:
-        return True
+        return availability
     else:
         check = all(
             [
@@ -110,11 +112,11 @@ def add_candidate(
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
         - id > уникальный ID для кандидата;
-        - vk_id > ID пользователя из VK;
-        - first_name > имя пользователя;
-        - last_name > фамилия пользователя;
-        - city > город пользователя;
-        - sex > род пользователя (число)
+        - vk_id > ID кандидата из VK;
+        - first_name > имя кандидата;
+        - last_name > фамилия кандидата;
+        - city > город кандидата;
+        - sex > род кандидата (число)
             0 = Женский
             1 = Мужской
             прочее приведется к 2 - не указан;
@@ -191,7 +193,7 @@ def add_to_favorites(
         candidate_id: int,
 ) -> bool:
     """
-    Функция добавляет выбранного человека в избранное для пользователя
+    Функция добавляет выбранного кандидата в избранное для пользователя
         сохраняя его в БД в таблице 'favorites'
     Аргументы:
         - session > активная сессия для взаимодействия
@@ -199,7 +201,7 @@ def add_to_favorites(
         - id > уникальный ID для избранного;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в избранные;
-        - candidate_id > ID понравившегося пользователя
+        - candidate_id > ID понравившегося кандидата
     Возвращает:
         True при успешном выполнении кода
     """
@@ -230,7 +232,7 @@ def add_to_blacklist(
         candidate_id: int,
 ) -> bool:
     """
-    Функция добавляет выбранного человека в чёрный список для пользователя
+    Функция добавляет выбранного кандидата в чёрный список для пользователя
         сохраняя его в БД в таблице 'blacklist'
     Аргументы:
         - session > активная сессия для взаимодействия
@@ -238,7 +240,7 @@ def add_to_blacklist(
         - id > уникальный идентификатор записи;
         - user_id > ID пользователя из таблицы 'users' для которого
                 выбранный человек добавляется в черный список;
-        - candidate_id > ID пользователя добавляемого в черный список
+        - candidate_id > ID кандидата добавляемого в черный список
     Возвращает:
         True при успешном исполнении кода
     """
@@ -265,19 +267,17 @@ def add_to_blacklist(
 def get_favorites(
         session: Session,
         user_id: int
-):
+) -> list:
     """
-    Функция ищет ID пользователей, которые добавлены в избранное
+    Функция ищет кандидатов, которые добавлены в избранное
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
         - user_id > ID пользователя из таблицы 'users' для которого идет поиск;
     Возвращает:
-        - список ID кандидатов, которые есть в избранном у пользователя
-        - False, если ничего не найдено
+        - список объектов класса 'Candidate', которые есть в избранном у пользователя;
+        - [] пустой список, если ничего не найдено
     """
-    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == user_id).all()
-
     check = all(
         [
             isinstance(session, Session),
@@ -288,25 +288,27 @@ def get_favorites(
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
+    list_ids = session.query(Favorite).filter(Favorite.user_id == user_id).all()
+
     if list_ids:
-        return [i[0] for i in list_ids]
+        return list_ids
     else:
-        return False
+        return []
 
 
 def get_blacklist_ids(
         session: Session,
         user_id: int
-):
+) -> list:
     """
-    Функция ищет ID пользователей, которые помещены в черный список
+    Функция ищет 'vk_id' кандидатов, которые помещены в черный список
     Аргументы:
         - session > активная сессия для взаимодействия
             созданная от Session(engine);
         - user_id > ID пользователя из таблицы 'users' для которого идет поиск;
     Возвращает:
-        - список ID кандидатов, которые добавлены в черный список у пользователя
-        - False, если ничего не найдено
+        - список 'vk_id' кандидатов, которые добавлены в черный список у пользователя;
+        - [] пустой список, если ни кто не добавлен
     """
     check = all(
         [
@@ -319,23 +321,70 @@ def get_blacklist_ids(
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
     list_ids = session.query(Blacklist.candidate_id).filter(Blacklist.user_id == user_id).all()
+
     if list_ids:
-        return [i[0] for i in list_ids]
+        list_vk_ids = []
+
+        for id in [id[0] for id in list_ids]:
+            vk_id = session.query(Candidate.vk_id).filter(Candidate.id == id).first()
+            list_vk_ids.append(vk_id[0])
+
+        return list_vk_ids
     else:
-        return False
+        return []
 
 
-# Не доделанные функции - пользователь ищется, но нет возврата данных
 def get_user_by_vk_id(
         session: Session,
         vk_id: int
 ):
+    """
+    Функция находит пользователя по 'vk_id'в таблице 'users'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > ID пользователя от VK из таблицы 'users'
+    Возвращает:
+        - Объект класса 'User', если он был найден;
+        - None, если ни чего не найдено
+    """
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(vk_id, int)
+        ]
+    )
+
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
     search = session.query(User).filter(User.vk_id == vk_id).first()
     return search
+
 
 def get_candidate_by_vk_id(
         session: Session,
         vk_id: int
 ):
+    """
+    Функция находит кандидата по 'vk_id' в таблице 'candidates'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > ID пользователя от VK из таблицы 'candidates'
+    Возвращает:
+        - Объект класса 'Candidate', если он найден;
+        - None, если кандидата не нашлось
+    """
+    check = all(
+        [
+            isinstance(session, Session),
+            isinstance(vk_id, int)
+        ]
+    )
+
+    if not check:
+        raise ValueError("Один из аргументов имеет не верный тип данных")
+
     search = session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
     return search
