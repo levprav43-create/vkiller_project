@@ -74,7 +74,7 @@ def main():
                                 last_name=user_info.get('last_name', 'Н'),
                                 city=user_info.get('city', {}).get('title') if user_info.get('city') else 'Н',
                                 age=user_info.get('age', 10),
-                                sex=user_info.get('sex', 'Н')
+                                sex=user_info.get('sex', 3)
                             )  # 'H' - значит не указанно, 10 для возраста по умолчанию
                             db_session.commit()
                             print(f"✅ Пользователь {user_id} сохранён в БД")
