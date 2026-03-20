@@ -35,7 +35,7 @@ def main():
     
     # Попытка подключения к БД
     try:
-        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/vkiller_db"
+        DATABASE_URL = "postgresql://postgres:makinTosh1122@localhost:5432/vkiller_db"
         engine = create_engine(DATABASE_URL, echo=False)
         Base.metadata.create_all(bind=engine)
         print("✅ Подключение к БД успешно")
