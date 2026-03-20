@@ -40,8 +40,8 @@ class Favorite(Base):
     __tablename__ = 'favorites'
     
     id = Column(Integer, Sequence('id_seq'), primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    candidate_id = Column(Integer, ForeignKey('candidates.id'))
+    user_vk_id = Column(Integer, ForeignKey('users.vk_id'))
+    candidate_vk_id = Column(Integer, ForeignKey('candidates.vk_id'))
     added_at = Column(DateTime, server_default=func.now())
 
 
@@ -50,6 +50,6 @@ class Blacklist(Base):
     __tablename__ = 'blacklist'
     
     id = Column(Integer, Sequence('id_seq'), primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    candidate_id = Column(Integer, ForeignKey('candidates.id'))
+    user_vk_id = Column(Integer, ForeignKey('users.vk_id'))
+    candidate_vk_id = Column(Integer, ForeignKey('candidates.vk_id'))
     added_at = Column(DateTime, server_default=func.now())
