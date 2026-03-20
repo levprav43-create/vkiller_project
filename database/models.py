@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Sequence
 from sqlalchemy.orm import declarative_base
 
+
 Base = declarative_base()
 
 
