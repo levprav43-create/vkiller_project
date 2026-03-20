@@ -12,8 +12,21 @@ def get_or_create_user(
         sex: int
 ) -> User:
     """
-    Функция добавляет пользователя в БД в таблицу 'users',
+    Добавляет пользователя в БД в таблицу 'users',
         если же пользователь уже добавлен возвращает объект класса 'User'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > ID пользователя из VK;
+        - first_name > имя пользователя;
+        - last_name > фамилия пользователя;
+        - city > город пользователя;
+        - sex > род пользователя (число)
+            0 = Женский
+            1 = Мужской
+            прочее приведется к 2 = не указан;
+    Возвращает:
+        - Новый или имеющийся объект класса 'User
     """
     availability = session.query(User).filter(User.vk_id == vk_id).first()
 
@@ -55,7 +68,7 @@ def get_or_create_user(
         )
         session.add(new_user)
         session.commit()
-        return new_user  # Всегда возвращаем объект
+        return new_user
 
 
 def add_candidate(
@@ -71,7 +84,26 @@ def add_candidate(
         photo_2: str,
         photo_3: str
 ) -> bool:
-    """Добавляет кандидата в БД"""
+    """
+    Добавляет кандидата для знакомства в БД в таблицу 'candidates'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > ID кандидата из VK;
+        - first_name > имя кандидата;
+        - last_name > фамилия кандидата;
+        - city > город кандидата;
+        - sex > род кандидата (число)
+            0 = Женский
+            1 = Мужской
+            прочее приведется к 2 - не указан;
+        - profile_url > ссылка на профиль в VK;
+        - photo_1 > ссылка №1 на популярное фото в VK
+        - photo_2 > ссылка №2 на популярное фото в VK
+        - photo_3 > ссылка №3 на популярное фото в VK
+    Возвращает:
+        При корректном завершении True
+    """
     check = all(
         [
             isinstance(session, Session),
@@ -119,96 +151,123 @@ def add_candidate(
 
 def add_to_favorites(
         session: Session,
-        user_id: int,
-        candidate_id: int,
+        user_vk_id: int,
+        candidate_vk_id: int,
 ) -> bool:
-    """Добавляет кандидата в избранное"""
+    """
+    Добавляет выбранного кандидата в избранное для пользователя
+        сохраняя его в БД в таблице 'favorites'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+                созданная от Session(engine);
+        - user_vk_id > VK ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в избранные;
+        - candidate_vk_id > VK ID понравившегося кандидата
+    Возвращает:
+        True при успешном выполнении кода
+    """
     check = all([
         isinstance(session, Session),
-        isinstance(user_id, int),
-        isinstance(candidate_id, int),
+        isinstance(user_vk_id, int),
+        isinstance(candidate_vk_id, int),
     ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    session.add(Favorite(user_id=user_id, candidate_id=candidate_id))
+    session.add(Favorite(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id))
     session.commit()
     return True
 
 
 def add_to_blacklist(
         session: Session,
-        user_id: int,
-        candidate_id: int,
+        user_vk_id: int,
+        candidate_vk_id: int,
 ) -> bool:
-    """Добавляет кандидата в чёрный список"""
+    """
+    Добавляет выбранного кандидата в чёрный список для пользователя
+        сохраняя его в БД в таблице 'blacklist'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+                созданная от Session(engine);
+        - user_vk_id > VK ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в черный список;
+        - candidate_vk_id > VK ID кандидата добавляемого в черный список
+    Возвращает:
+        True при успешном исполнении кода
+    """
     check = all([
         isinstance(session, Session),
-        isinstance(user_id, int),
-        isinstance(candidate_id, int),
+        isinstance(user_vk_id, int),
+        isinstance(candidate_vk_id, int),
     ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    session.add(Blacklist(user_id=user_id, candidate_id=candidate_id))
+    session.add(Blacklist(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id))
     session.commit()
     return True
 
 
-def get_favorites(
-        session: Session,
-        user_vk_id: int
-) -> list:
-    """Ищет кандидатов в избранном у пользователя"""
+def get_favorites(session: Session, user_vk_id: int) -> list:
+    """
+    Ищет кандидатов, которые добавлены в избранное
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - user_vk_id > ID пользователя из таблицы 'users' для которого идет поиск;
+    Возвращает:
+        - список объектов класса 'Candidate', которые есть в избранном у пользователя;
+        - [] пустой список, если ничего не найдено
+    """
     check = all([
         isinstance(session, Session),
         isinstance(user_vk_id, int)
     ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    # 🔥 Сначала найти пользователя по vk_id
-    user = session.query(User).filter(User.vk_id == user_vk_id).first()
-    if not user:
-        return []
-    
-    # 🔥 Теперь использовать ВНУТРЕННИЙ user.id
-    list_ids = session.query(Favorite.candidate_id).filter(Favorite.user_id == user.id).all()
+    list_ids = session.query(Favorite.candidate_vk_id).filter(Favorite.user_vk_id == user_vk_id).all()
 
     if list_ids:
         list_obj = []
-        for id in [id[0] for id in list_ids]:
-            candidate = session.query(Candidate).filter(Candidate.id == id).first()
-            if candidate:  # Проверка на None
+        for vk_id in [vk_id[0] for vk_id in list_ids]:
+            candidate = session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
+            if candidate:
                 list_obj.append(candidate)
         return list_obj
     else:
         return []
 
 
-def get_blacklist_ids(
-        session: Session,
-        user_vk_id: int
-) -> list:
-    """Ищет vk_id кандидатов в чёрном списке"""
+def get_blacklist_ids(session: Session, user_vk_id: int) -> list:
+    """
+    Ищет 'vk_id' кандидатов, которые помещены в черный список
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - user_vk_id > ID пользователя из таблицы 'users' для которого идет поиск;
+    Возвращает:
+        - список 'vk_id' кандидатов, которые добавлены в черный список у пользователя;
+        - [] пустой список, если ни кто не добавлен
+    """
     check = all([
         isinstance(session, Session),
         isinstance(user_vk_id, int)
     ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
-    # Найти пользователя по vk_id
-    user = session.query(User).filter(User.vk_id == user_vk_id).first()
-    if not user:
-        return []
-
-    list_ids = session.query(Blacklist.candidate_id).filter(Blacklist.user_id == user.id).all()
+    list_ids = session.query(Blacklist.candidate_vk_id).filter(Blacklist.user_vk_id == user_vk_id).all()
 
     if list_ids:
         list_vk_ids = []
-        for id in [id[0] for id in list_ids]:
-            vk_id = session.query(Candidate.vk_id).filter(Candidate.id == id).first()
+        for vk_id in [vk_id[0] for vk_id in list_ids]:
+            vk_id = session.query(Candidate.vk_id).filter(Candidate.vk_id == vk_id).first()
             if vk_id:
                 list_vk_ids.append(vk_id[0])
         return list_vk_ids
@@ -217,18 +276,46 @@ def get_blacklist_ids(
 
 
 def get_user_by_vk_id(session: Session, vk_id: int) -> User | None:
-    """Находит пользователя по vk_id"""
-    check = all([isinstance(session, Session), isinstance(vk_id, int)])
+    """
+    Находит пользователя по 'vk_id' в таблице 'users'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > VK ID пользователя из таблицы 'users'
+    Возвращает:
+        - Объект класса 'User', если он был найден;
+        - None, если ни чего не найдено
+    """
+    check = all([
+        isinstance(session, Session),
+        isinstance(vk_id, int)
+    ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
+
     return session.query(User).filter(User.vk_id == vk_id).first()
 
 
 def get_candidate_by_vk_id(session: Session, vk_id: int) -> Candidate | None:
-    """Находит кандидата по vk_id"""
-    check = all([isinstance(session, Session), isinstance(vk_id, int)])
+    """
+    Находит кандидата по 'vk_id' в таблице 'candidates'
+    Аргументы:
+        - session > активная сессия для взаимодействия
+            созданная от Session(engine);
+        - vk_id > VK ID кандидата из таблицы 'candidates'
+    Возвращает:
+        - Объект класса 'Candidate', если он найден;
+        - None, если кандидата не нашлось
+    """
+    check = all([
+        isinstance(session, Session),
+        isinstance(vk_id, int)
+    ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
+
     return session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
 
 
@@ -238,17 +325,23 @@ def filter_candidates(
     favorites_ids: list[int]
 ) -> list[dict]:
     """
-    Фильтрует кандидатов: убирает тех, кто в ЧС или избранном.
-    ✅ Исправлено: без session, без багов с удалением
+    Функция для фильтрации поступивших кандидатов, убирает тех кто есть в ЧС или в избранном
+    Аргументы:
+        - candidates > список кандидатов от VK API;
+        - blacklist_ids > список VK ID пользователей находящихся в черном списке;
+        - favorites_ids > список VK ID избранных пользователей
+    Возвращает:
+        - отфильтрованный список кандидатов.
     """
     check = all([
         isinstance(candidates, list),
         isinstance(blacklist_ids, list),
         isinstance(favorites_ids, list)
     ])
+
     if not check:
         raise ValueError("Один из аргументов имеет не верный тип данных")
 
     exclude_ids = set(blacklist_ids + favorites_ids)
-    # ✅ Безопасная фильтрация через list comprehension
-    return [c for c in candidates if c['id'] not in exclude_ids]
+
+    return [rec for rec in candidates if rec['id'] not in exclude_ids]
