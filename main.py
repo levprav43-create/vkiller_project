@@ -16,7 +16,8 @@ try:
         add_to_blacklist,
         get_favorites,
         get_blacklist_ids,
-        filter_candidates
+        filter_candidates,
+        get_user_by_vk_id
     )
     DB_FUNCTIONS_AVAILABLE = True
     print("✅ Функции db_manager.py загружены")
@@ -93,6 +94,7 @@ def main():
                 
                 print(f"💬 Сообщение от {user_id}: {text[:50]}...")
                 
+                # 🔧 Сохранение пользователя в БД (всегда, для всех команд)
                 if DB_FUNCTIONS_AVAILABLE and engine:
                     with Session(engine) as db_session:
                         try:
@@ -116,20 +118,24 @@ def main():
                                 sex=sex
                             )
                             db_session.commit()
-                            print(f"✅ Пользователь {user_id} сохранён в БД")
                         except Exception as db_error:
                             print(f"⚠️  Ошибка БД: {db_error}")
-                            db_session.rollback()
                 
                 command = text.strip().lower()
                 
+                # =================================================================
+                # КОМАНДА: начать
+                # =================================================================
                 if command in ['начать', 'start', '/start', 'тест', 'test']:
                     if user_id in user_candidates:
                         del user_candidates[user_id]
                     if f"{user_id}_index" in user_candidates:
                         del user_candidates[f"{user_id}_index"]
                     response = "🔍 Привет! Бот работает! 🎉\nНапиши 'далее' для поиска пары"
-                    
+                
+                # =================================================================
+                # КОМАНДА: далее (поиск кандидатов)
+                # =================================================================
                 elif command == 'далее':
                     if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
@@ -175,6 +181,17 @@ def main():
                                     candidate = candidates[idx]
                                     user_candidates[f"{user_id}_index"] = idx + 1
                                     
+                                    # 🔧 Сохраняем кандидата в БД
+                                    try:
+                                        add_candidate(
+                                            db_session,
+                                            get_user_by_vk_id(db_session, user_id).id,
+                                            candidate
+                                        )
+                                        db_session.commit()
+                                    except:
+                                        pass  # Не критично, если не сохранится
+                                    
                                     # Формируем ответ с фото
                                     photos = candidate.get('photos', [])
                                     photo_text = ""
@@ -188,7 +205,7 @@ def main():
                                         f"📍 {candidate.get('city', 'Город не указан')}\n"
                                         f"🔗 {candidate.get('profile_url', '')}\n\n"
                                         f"{photo_text}\n\n"
-                                        f"💕 Нравится? Напиши 'избранное' чтобы сохранить\n"
+                                        f"💕 Нравится? Напиши 'нравится' чтобы сохранить\n"
                                         f"➡️ Напиши 'далее' для следующего"
                                     )
                                 else:
@@ -203,17 +220,96 @@ def main():
                                 print(f"❌ Ошибка: {db_error}")
                     else:
                         response = "👤 Поиск... (БД недоступна)"
-                    
+                
+                # =================================================================
+                # КОМАНДА: избранное (показать список)
+                # =================================================================
                 elif command == 'избранное':
-                    response = "⭐ Ваш список избранного (функция в разработке)"
+                    if DB_FUNCTIONS_AVAILABLE and engine:
+                        with Session(engine) as db_session:
+                            try:
+                                user_obj = get_user_by_vk_id(db_session, user_id)
+                                fav_list = get_favorites(db_session, user_obj.id)
+                                
+                                if fav_list:
+                                    items = []
+                                    for fav in fav_list:
+                                        # 🔧 ИСПРАВЛЕНИЕ: используем .vk_id вместо .candidate_vk_id
+                                        vk_id = getattr(fav, 'vk_id', getattr(fav, 'candidate_vk_id', 'unknown'))
+                                        items.append(f"- https://vk.com/id{vk_id}")
+                                    response = f"⭐ Ваше избранное ({len(fav_list)}):\n" + "\n".join(items)
+                                else:
+                                    response = "⭐ Ваш список избранного пуст"
+                            except Exception as e:
+                                response = f"⚠️ Ошибка: {e}"
+                    else:
+                        response = "⭐ Ваш список избранного (БД недоступна)"
+                
+                # =================================================================
+                # КОМАНДА: нравится / like / + (добавить в избранное)
+                # =================================================================
                 elif command in ['нравится', 'like', '+']:
-                    response = "✅ Добавлено в избранное!"
+                    if DB_FUNCTIONS_AVAILABLE and engine:
+                        with Session(engine) as db_session:
+                            try:
+                                # Проверяем, есть ли текущий кандидат
+                                if user_id in user_candidates and f"{user_id}_index" in user_candidates:
+                                    idx = user_candidates[f"{user_id}_index"] - 1
+                                    if idx >= 0 and idx < len(user_candidates[user_id]):
+                                        candidates = user_candidates[user_id]
+                                        candidate = candidates[idx]
+                                        candidate_vk_id = candidate.get('id')
+                                        
+                                        user_obj = get_user_by_vk_id(db_session, user_id)
+                                        add_to_favorites(db_session, user_obj.id, candidate_vk_id)
+                                        db_session.commit()
+                                        
+                                        response = f"✅ {candidate.get('first_name')} добавлен в избранное!"
+                                    else:
+                                        response = "⚠️ Сначала напиши 'далее' чтобы увидеть кандидата"
+                                else:
+                                    response = "⚠️ Сначала напиши 'далее' чтобы увидеть кандидата"
+                            except Exception as e:
+                                response = f"⚠️ Ошибка: {e}"
+                    else:
+                        response = "✅ Добавлено в избранное! (БД недоступна)"
+                
+                # =================================================================
+                # КОМАНДА: не нравится / blacklist / - (добавить в ЧС)
+                # =================================================================
                 elif command in ['не нравится', 'blacklist', '-']:
-                    response = "✅ Добавлено в чёрный список!"
+                    if DB_FUNCTIONS_AVAILABLE and engine:
+                        with Session(engine) as db_session:
+                            try:
+                                # Проверяем, есть ли текущий кандидат
+                                if user_id in user_candidates and f"{user_id}_index" in user_candidates:
+                                    idx = user_candidates[f"{user_id}_index"] - 1
+                                    if idx >= 0 and idx < len(user_candidates[user_id]):
+                                        candidates = user_candidates[user_id]
+                                        candidate = candidates[idx]
+                                        candidate_vk_id = candidate.get('id')
+                                        
+                                        user_obj = get_user_by_vk_id(db_session, user_id)
+                                        add_to_blacklist(db_session, user_obj.id, candidate_vk_id)
+                                        db_session.commit()
+                                        
+                                        response = f"✅ {candidate.get('first_name')} добавлен в чёрный список!"
+                                    else:
+                                        response = "⚠️ Сначала напиши 'далее' чтобы увидеть кандидата"
+                                else:
+                                    response = "⚠️ Сначала напиши 'далее' чтобы увидеть кандидата"
+                            except Exception as e:
+                                response = f"⚠️ Ошибка: {e}"
+                    else:
+                        response = "✅ Добавлено в чёрный список! (БД недоступна)"
+                
+                # =================================================================
+                # КОМАНДА: неизвестная
+                # =================================================================
                 else:
                     response = "Напишите /начать для поиска пары 💕"
                 
-                # 🔧 Защита только от ответов бота (не от команд пользователя!)
+                # 🔧 Защита от зацикливания (только ответы бота)
                 response_hash = f"{peer_id}:{response.strip()}"
                 if response_hash in LAST_BOT_MESSAGES:
                     print("⏭️  Пропущено: дубль ответа бота")
