@@ -195,3 +195,35 @@ def filter_candidates(
         if vk_id and vk_id not in blacklist_ids and vk_id not in favorites_ids:
             filtered.append(c)
     return filtered
+
+
+def get_user_by_vk_id(db_session: Session, vk_id: int) -> User | None:
+    """
+    Находит пользователя по 'vk_id' в таблице 'users'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        vk_id (int): VK ID пользователя из таблицы 'users'
+
+    Возвращает:
+        User: Объект класса 'User', если пользователь был найден;
+        None: Если ни чего не найдено
+    """
+
+    return db_session.query(User).filter(User.vk_id == vk_id).first()
+
+
+def get_candidate_by_vk_id(db_session: Session, vk_id: int) -> Candidate | None:
+    """
+    Находит кандидата по 'vk_id' в таблице 'candidates'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        vk_id (int): VK ID пользователя из таблицы 'users'
+
+    Возвращает:
+        User: Объект класса 'Candidate', если кандидат был найден;
+        None: Если, его не нашлось
+    """
+
+    return db_session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
