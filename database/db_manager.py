@@ -3,8 +3,31 @@ from database.models import User, Candidate, Favorite, Blacklist
 
 
 
-def get_or_create_user(db_session: Session, vk_id: int, first_name: str, last_name: str, city: str, age: int, sex: int):
-    """Получить или создать пользователя"""
+def get_or_create_user(
+        db_session: Session,
+        vk_id: int,
+        first_name: str,
+        last_name: str,
+        city: str,
+        age: int,
+        sex: int
+) -> User:
+    """
+    Добавляет пользователя в БД в таблицу 'users'
+
+    Когда пользователь уже имеется в БД возвращает объект класса 'User'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy
+        vk_id (int): ID пользователя из VK;
+        first_name (str): Имя пользователя;
+        last_name (str): Фамилия пользователя;
+        city (str): Город пользователя;
+        sex (int): Род пользователя
+
+    Возвращает:
+        User: Новый или имеющийся объект класса 'User'
+    """
     user = db_session.query(User).filter(User.vk_id == vk_id).first()
     
     if not user:
@@ -23,8 +46,22 @@ def get_or_create_user(db_session: Session, vk_id: int, first_name: str, last_na
     return user
 
 
-def add_candidate(db_session: Session, user_id: int, candidate_data: dict):
-    """Добавить кандидата"""
+def add_candidate(
+        db_session: Session,
+        user_id: int,
+        candidate_data: dict
+) -> Candidate:
+    """
+    Добавляет кандидата для знакомства в БД в таблицу 'candidates'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        user_id (int): ID пользователя;
+        candidate_data (dict): Словарь с данными о кандидате
+
+    Возвращает:
+        Candidate: объект класса 'Candidate'
+    """
     candidate = Candidate(
         user_id=user_id,
         vk_id=candidate_data.get('vk_id'),
@@ -42,8 +79,24 @@ def add_candidate(db_session: Session, user_id: int, candidate_data: dict):
     return candidate
 
 
-def add_to_favorites(db_session: Session, user_id: int, candidate_vk_id: int):
-    """Добавить в избранное"""
+def add_to_favorites(
+        db_session: Session,
+        user_id: int,
+        candidate_vk_id: int
+) -> Favorite:
+    """
+    Добавляет выбранного кандидата в избранное для пользователя
+        сохраняя его в БД в таблице 'favorites'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        user_id (int): ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в избранные;
+        candidate_vk_id (int): VK ID понравившегося кандидата
+
+    Возвращает:
+        Favorite: объект класса 'Favorite'
+    """
     favorite = Favorite(
         user_id=user_id,
         candidate_vk_id=candidate_vk_id
@@ -53,9 +106,24 @@ def add_to_favorites(db_session: Session, user_id: int, candidate_vk_id: int):
     return favorite
 
 
-def add_to_blacklist(db_session: Session, user_id: int, candidate_vk_id: int):
-    """Добавить в чёрный список"""
-    # 🔧 ИСПРАВЛЕНИЕ: candidate_vk_id вместо user_vk_id
+def add_to_blacklist(
+        db_session: Session,
+        user_id: int,
+        candidate_vk_id: int
+) -> Blacklist:
+    """
+    Добавляет выбранного кандидата в чёрный список для пользователя
+        сохраняя его в БД в таблице 'blacklist'
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        user_id (int): ID пользователя из таблицы 'users' для которого
+                выбранный человек добавляется в черный список;
+        candidate_vk_id (int): VK ID понравившегося кандидата
+
+    Возвращает:
+        Blacklist: объект класса 'Blacklist'
+    """
     blacklist = Blacklist(
         user_id=user_id,
         candidate_vk_id=candidate_vk_id
@@ -65,20 +133,53 @@ def add_to_blacklist(db_session: Session, user_id: int, candidate_vk_id: int):
     return blacklist
 
 
-def get_favorites(db_session: Session, user_id: int):
-    """Получить список избранного"""
+def get_favorites(db_session: Session, user_id: int) -> list:
+    """
+    Ищет кандидатов, которые добавлены в избранное
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        user_id (int): ID пользователя из таблицы 'users' для которого идет поиск
+
+    Возвращает:
+        list[Candidate]: Список объектов класса 'Candidate', которые есть в избранном у пользователя;
+        []: Пустой список, если ничего не найдено
+    """
     return db_session.query(Favorite).filter(Favorite.user_id == user_id).all()
 
 
-def get_blacklist_ids(db_session: Session, user_id: int):
-    """Получить ID чёрного списка"""
-    # 🔧 ИСПРАВЛЕНИЕ: candidate_vk_id вместо user_vk_id
+def get_blacklist_ids(db_session: Session, user_id: int) -> list:
+    """
+    Ищет 'vk_id' кандидатов, которые помещены в черный список
+
+    Аргументы:
+        db_session (Session): Активная сессия sqlalchemy;
+        user_id (int): ID пользователя из таблицы 'users' для которого идет поиск
+
+    Возвращает:
+        list[int]: Список 'candidate_vk_id' кандидатов, которые добавлены в черный список у пользователя;
+        []: Пустой список, если ни кто не добавлен
+    """
     blacklists = db_session.query(Blacklist).filter(Blacklist.user_id == user_id).all()
     return [b.candidate_vk_id for b in blacklists]
 
 
-def filter_candidates(candidates: list, blacklist_ids: list, favorites_ids: list):
-    """Отфильтровать кандидатов"""
+def filter_candidates(
+        candidates: list[dict],
+        blacklist_ids: list[int],
+        favorites_ids: list[int]
+) -> list[dict]:
+    """
+    Фильтрует список поступивших кандидатов, убирает тех кто есть в ЧС или в избранном
+
+    Аргументы:
+        candidates (list[dict]): Список кандидатов от VK API;
+        blacklist_ids (list[int]): список VK ID пользователей находящихся в черном списке;
+        favorites_ids (list[int]): список VK ID избранных пользователей
+
+    Возвращает:
+        list[dict]: Отфильтрованный список кандидатов.
+    """
     filtered = []
     for c in candidates:
         vk_id = c.get('id')
