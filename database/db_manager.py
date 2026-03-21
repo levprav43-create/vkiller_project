@@ -63,15 +63,15 @@ def add_candidate(
     """
     candidate = Candidate(
         user_id=user_id,
-        vk_id=candidate_data.get('vk_id'),
+        vk_id=candidate_data.get('id'),
         first_name=candidate_data.get('first_name'),
         last_name=candidate_data.get('last_name'),
-        age=candidate_data.get('age'),
-        city=candidate_data.get('city'),
-        photo_1=candidate_data.get('photo_1'),
-        photo_2=candidate_data.get('photo_2'),
-        photo_3=candidate_data.get('photo_3'),
-        profile_url=candidate_data.get('profile_url')
+        age=candidate_data.get('age', 18),
+        city=candidate_data.get('city', 1),
+        photo_1=candidate_data.get('photo_1', ""),
+        photo_2=candidate_data.get('photo_2', ""),
+        photo_3=candidate_data.get('photo_3', ""),
+        profile_url=candidate_data.get('profile_url', "")
     )
     db_session.add(candidate)
     db_session.commit()
