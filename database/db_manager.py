@@ -144,7 +144,17 @@ def get_favorites(db_session: Session, user_id: int) -> list:
         list[Candidate]: Список объектов класса 'Candidate', которые есть в избранном у пользователя;
         []: Пустой список, если ничего не найдено
     """
-    return db_session.query(Favorite).filter(Favorite.user_id == user_id).all()
+    list_ids = db_session.query(Favorite.candidate_vk_id).filter(Favorite.user_id == user_id).all()
+
+    if list_ids:
+        list_obj = []
+        for vk_id in [vk_id[0] for vk_id in list_ids]:
+            candidate = db_session.query(Candidate).filter(Candidate.vk_id == vk_id).first()
+            if candidate:
+                list_obj.append(candidate)
+        return list_obj
+    else:
+        return []
 
 
 def get_blacklist_ids(db_session: Session, user_id: int) -> list:
