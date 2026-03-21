@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from database.models import User, Candidate, Favorite, Blacklist
-from datetime import datetime
+
 
 
 def get_or_create_user(db_session: Session, vk_id: int, first_name: str, last_name: str, city: str, age: int, sex: int):
