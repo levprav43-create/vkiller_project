@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from database.models import User, Candidate, Favorite, Blacklist
 
 
-
 def get_or_create_user(
         db_session: Session,
         vk_id: int,
