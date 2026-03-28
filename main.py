@@ -7,7 +7,6 @@ from vk_api import longpoll
 from dotenv import load_dotenv
 import os
 import time
-import json
 
 try:
     from database.db_manager import (
@@ -31,6 +30,44 @@ load_dotenv()
 engine = None
 LAST_BOT_MESSAGES = []
 user_candidates = {}
+
+
+def get_search_keyboard():
+    """Вернуть клавиатуру с кнопками поиска."""
+    return [
+        [
+            {
+                "action": {"type": "text", "label": "❤️ Нравится"},
+                "value": {"text": "нравится"}
+            },
+            {
+                "action": {"type": "text", "label": "❌ Не нравится"},
+                "value": {"text": "не нравится"}
+            }
+        ],
+        [
+            {
+                "action": {"type": "text", "label": "➡️ Далее"},
+                "value": {"text": "далее"}
+            },
+            {
+                "action": {"type": "text", "label": "⭐ Избранное"},
+                "value": {"text": "избранное"}
+            }
+        ]
+    ]
+
+
+def get_main_keyboard():
+    """Вернуть главную клавиатуру."""
+    return [
+        [
+            {
+                "action": {"type": "text", "label": "🔍 Начать поиск"},
+                "value": {"text": "/начать"}
+            }
+        ]
+    ]
 
 
 def main():
@@ -76,6 +113,7 @@ def main():
         return
 
     vk_client = VKClient()
+    vk_client.init_session(vk_token)
 
     print("🤖 Бот VKinder запущен...")
 
@@ -111,7 +149,6 @@ def main():
 
                 print(f"💬 Сообщение от {user_id}: {text[:50]}...")
 
-                # Сохранение пользователя в БД
                 if DB_FUNCTIONS_AVAILABLE and engine:
                     with Session(engine) as db_session:
                         try:
@@ -141,7 +178,6 @@ def main():
 
                 command = text.strip().lower()
 
-                # КОМАНДА: начать
                 if command in ['начать', 'start', '/start', 'тест', 'test']:
                     if user_id in user_candidates:
                         del user_candidates[user_id]
@@ -150,10 +186,13 @@ def main():
                         del user_candidates[index_key]
                     response = (
                         "🔍 Привет! Бот работает! 🎉\n"
-                        "Напиши 'далее' для поиска пары"
+                        "Нажми 'Начать поиск' для поиска пары"
                     )
+                    vk_client.send_message_with_buttons(
+                        peer_id, response, get_main_keyboard()
+                    )
+                    continue
 
-                # КОМАНДА: далее
                 elif command == 'далее':
                     if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
@@ -181,8 +220,7 @@ def main():
                                 ):
                                     print(
                                         f"🔍 Поиск: age={current_user.age}, "
-                                        f"sex={current_user.sex}, "
-                                        f"city='{search_city}'"
+                                        f"sex={current_user.sex}"
                                     )
 
                                     raw_candidates = vk_client.search_users(
@@ -219,7 +257,6 @@ def main():
                                     candidate = candidates[idx]
                                     user_candidates[index_key] = idx + 1
 
-                                    # Сохраняем кандидата в БД
                                     try:
                                         user_obj = get_user_by_vk_id(
                                             db_session, user_id
@@ -257,11 +294,15 @@ def main():
                                         f"👤 {first} {last}, {age_val} лет\n"
                                         f"📍 {city_val}\n"
                                         f"🔗 {url}\n\n"
-                                        f"{photo_text}\n\n"
-                                        f"💕 Напиши 'нравится' "
-                                        f"чтобы сохранить\n"
-                                        f"➡️ Напиши 'далее' для следующего"
+                                        f"{photo_text}"
                                     )
+
+                                    vk_client.send_message_with_buttons(
+                                        peer_id, response,
+                                        get_search_keyboard()
+                                    )
+                                    continue
+
                                 else:
                                     response = (
                                         "😔 Кандидатов не найдено. "
@@ -278,7 +319,6 @@ def main():
                     else:
                         response = "👤 Поиск... (БД недоступна)"
 
-                # КОМАНДА: избранное
                 elif command == 'избранное':
                     if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
@@ -319,7 +359,6 @@ def main():
                     else:
                         response = "⭐ Ваш список избранного (БД недоступна)"
 
-                # КОМАНДА: нравится
                 elif command in ['нравится', 'like', '+']:
                     if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
@@ -364,7 +403,6 @@ def main():
                     else:
                         response = "✅ Добавлено! (БД недоступна)"
 
-                # КОМАНДА: не нравится
                 elif command in ['не нравится', 'blacklist', '-']:
                     if DB_FUNCTIONS_AVAILABLE and engine:
                         with Session(engine) as db_session:
@@ -412,7 +450,6 @@ def main():
                 else:
                     response = "Напишите /начать для поиска пары 💕"
 
-                # Защита от зацикливания
                 response_hash = f"{peer_id}:{response.strip()}"
                 if response_hash in LAST_BOT_MESSAGES:
                     print("⏭️  Пропущено: дубль ответа бота")
