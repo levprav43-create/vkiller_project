@@ -47,8 +47,8 @@ class Favorite(Base):
     __tablename__ = 'favorites'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    candidate_vk_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, unique=True)
+    candidate_vk_id = Column(Integer, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship('User', back_populates='favorites')
@@ -58,8 +58,8 @@ class Blacklist(Base):
     __tablename__ = 'blacklists'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    candidate_vk_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, unique=True)
+    candidate_vk_id = Column(Integer, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship('User', back_populates='blacklists')
